@@ -116,7 +116,6 @@ if [ -n "$BUILDPACK_VERBOSE" ]; then
   set -x
 fi
 
-
 # Get the path to dir one above this file.
 BUILDPACK_DIR=$(cd -P -- "$(dirname -- "$0")" && cd .. && pwd -P)
 # Get the directory our app is checked out in (the "BUILD_DIR"), passed by Heroku
@@ -262,7 +261,6 @@ PATH="$METEOR_DIR/.meteor:`dirname $METEOR_NPM`:$COMPILE_DIR/bin:$PATH"
 echo_with_time "Using node: `$NODE --version`"
 echo_with_time "    and npm: `$METEOR_NPM --version`"
 
-
 # TODO: run before hook scripts
 
 # Handle npm's new cert bug
@@ -289,6 +287,11 @@ if [ "$GIT_SSH_KEY" != "" ]; then
   # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
   ssh -oStrictHostKeyChecking=no -T git@github.com || true
   echo_with_time "Connected"
+fi
+
+if [ "$NPM_TOKEN" != "" ]; then
+  echo_with_time "Setup NPM_TOKEN"
+  echo "//npm.pkg.github.com/:_authToken=$NPM_TOKEN" > ~/.npmrc
 fi
 
 # If we use npm on root, run npm install.  Don't use `--production` here, as we
