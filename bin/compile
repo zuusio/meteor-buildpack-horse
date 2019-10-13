@@ -6,8 +6,6 @@
 
 # fail fast.
 set -e
-# debug verbosely.
-set -x
 
 # Save the start time to calculate execution time
 START=$(date +%s)
@@ -17,74 +15,7 @@ echo_with_time(){
   MSG=$1
   LEND=$(date +%s)
   LDIFF=$(($LEND - $START))
-  echo "-----> $(date -d@$LDIFF -u +%H:%M:%S) ----| $MSG"
-}
-
-# For heroku stats
-get_node_major_version() {
-  local node_version=`METEOR node --version`
-  # major_string will be ex: "6." "8." "10"
-  local major_string=${node_version:1:2}
-  # strip any "."s from major_string
-  local major=${major_string//.}
-  echo $major
-}
-get_latest_release() {
-    # Get latest release tag from GitHub api
-    curl --silent --write-out "%{http_code}" "https://api.github.com/repos/heroku/heroku-nodejs-plugin/releases/latest" |
-        grep '"tag_name":' |
-        sed -E 's/.*"([^"]+)".*/\1/'
-}
-test_hash() {
-    local major=${1}
-    local dir=${2}
-
-     local downloaded_sha=$(cat $dir/heroku-nodejs-plugin-node-$major.sha512 | awk '{print substr($0,0,128)}')
-    local binary_sha=$(shasum -a 512 $dir/heroku-nodejs-plugin-node-$major.tar.gz | awk '{print substr($0,0,128)}')
-
-     if [[ "$downloaded_sha" != "$binary_sha" ]]; then
-        echo_with_time "Invalid SHA for file: $dir/heroku-nodejs-plugin-node-$major.tar.gz"
-        exit 1
-    else
-        echo_with_time "Verified SHA for file: $dir/heroku-nodejs-plugin-node-$major.tar.gz"
-    fi
-}
-download() {
-    local url=${1}
-    local file=${2}
-    local code=$(curl "$url" -L --fail --retry 5 --retry-max-time 15 -o "${file}" --write-out "%{http_code}")
-    if [[ "$code" != "200" ]]; then
-        echo_with_time "Unable to download from url: $url http code: $code"
-        exit 1
-    fi
-}
-download_assets_for_release() {
-    local tag=${1}
-    local dir=${2}
-    local version=${3}
-
-     download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-$version-$tag.sha512" "$dir/heroku-nodejs-plugin-node-$version.sha512"
-    download "https://github.com/heroku/heroku-nodejs-plugin/releases/download/$tag/heroku-nodejs-plugin-node-$version-$tag.tar.gz" "$dir/heroku-nodejs-plugin-node-$version.tar.gz"
-    test_hash $version $dir
-}
-download_plugin() {
-  local tag_name=$(get_latest_release)
-  download_assets_for_release $tag_name $1 $2
-}
-install_plugin() {
-  local bp_dir="$1"
-  local build_dir="$2"
-  local major=$(get_node_major_version)
-  mkdir -p "${bp_dir}/plugin"
-  download_plugin "${bp_dir}/plugin" $major
-  local plugin="${bp_dir}/plugin/heroku-nodejs-plugin-node-${major}.tar.gz"
-  # If we have a version of the plugin compiled for this version of node, and the
-  # user has not opted out of including the plugin, copy it into the slug.
-  # It will be included at runtime once the user opts into the Node metrics feature
-  if [[ -f "${plugin}" ]] && [[ -z "$HEROKU_SKIP_NODE_PLUGIN" ]]; then
-    mkdir -p "${build_dir}/.heroku/"
-    tar -xzf ${plugin} -C "${build_dir}/.heroku/"
-  fi
+  echo "-----> $(date -u +%H:%M:%S) > $(date -d@$LDIFF -u +%H:%M:%S) ---- | $MSG"
 }
 
 # Load config vars into environment (from https://devcenter.heroku.com/articles/buildpack-api)
@@ -94,7 +25,7 @@ export_env_dir() {
   blacklist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
   if [ -d "$env_dir" ]; then
     for e in $(ls $env_dir); do
-      echo_with_time "$e" | grep -E "$whitelist_regex" | grep -qvE "$blacklist_regex" &&
+      echo "$e" | grep -E "$whitelist_regex" | grep -qvE "$blacklist_regex" &&
       export "$e=$(cat $env_dir/$e)"
       :
     done
@@ -104,15 +35,10 @@ export_env_dir() {
 echo_with_time "Started"
 
 export_env_dir $3
-if [ "$DEBUG_BUILD_PACK" != "" ]; then
-  echo_with_time "Buildpack debug enabled"
-  # debug verbosely.
-  set -x
-fi
 
 # Enable verbose debugging if configured to -- though this has to come after
 # we've loaded environment configs.
-if [ -n "$BUILDPACK_VERBOSE" ]; then
+if [ -n "${BUILDPACK_VERBOSE}" ]; then
   set -x
 fi
 
@@ -121,12 +47,10 @@ BUILDPACK_DIR=$(cd -P -- "$(dirname -- "$0")" && cd .. && pwd -P)
 # Get the directory our app is checked out in (the "BUILD_DIR"), passed by Heroku
 APP_CHECKOUT_DIR=$1
 CACHE_DIR=$2
-if [ -n "$BUILDPACK_CLEAR_CACHE" ]; then
+if [ -n "${BUILDPACK_CLEAR_CACHE}" ]; then
   echo_with_time "Clearing cache dir."
   rm -rf "$CACHE_DIR/*"
 fi
-echo_with_time "App Dir: $1"
-echo_with_time "Cache Dir: $2"
 
 #
 # Find the meteor app ($APP_SOURCE_DIR).
@@ -163,8 +87,6 @@ fi
 # Create directories as needed.
 mkdir -p "$APP_CHECKOUT_DIR" "$METEOR_DIR"
 mkdir -p "$COMPILE_DIR" "$COMPILE_DIR/bin" "$COMPILE_DIR/lib"
-
-cp "$BUILDPACK_DIR/lib/start.sh" "$COMPILE_DIR/start.sh"
 
 # Set a default ROOT_URL if one is not defined. Currently, HEROKU_APP_NAME is
 # only available if you enable the labs addon "Heroku Dyno Metadata":
@@ -217,15 +139,16 @@ HAS_SERVER_ONLY=`METEOR help build | grep -e '--server-only'`
 set -e
 if [ -n "$HAS_SERVER_ONLY" ] ; then
   SERVER_ONLY_FLAG='--server-only'
-else
-  SERVER_ONLY_FLAG=""
-fi
-# Remove the Android platform if we don't support the --server-only flag
-# (Meteor 1.2 and below).  iOS platform gets ignored properly.
-if [ -z "$SERVER_ONLY_FLAG" ]; then
+  # Remove platforms to force corodova skip
   echo_with_time "Attempting to remove android platform."
   METEOR remove-platform android || true
   echo_with_time "Moving on."
+
+  echo_with_time "Attempting to remove android platform."
+  METEOR remove-platform ios || true
+  echo_with_time "Moving on."
+else
+  SERVER_ONLY_FLAG=""
 fi
 
 # Identify the npm/node to use. We need to copy the node binary out to get the
@@ -237,18 +160,13 @@ fi
 # install.meteor.com is >=1.3, "meteor node" is available, even if the target
 # release predates that feature.
 METEOR_NODE=`METEOR node -e "process.stdout.write(process.execPath)"`
-METEOR_NODE_VERSION=`METEOR node --version | cut -d'v' -f 2`
 # Assume npm is in the same dir as node.
 METEOR_NPM="`dirname "$METEOR_NODE"`/npm"
 
 if [ -z "$METEOR_NPM" ] || [ -z "$METEOR_NODE" ] ; then
-  echo "FATAL: Can't find npm/node within meteor bundle. This is a bug. Please open an issue at https://github.com/AdmitHub/meteor-buildpack-horse.";
+  echo_with_time "FATAL: Can't find npm/node within meteor bundle. This is a bug. Please open an issue at https://github.com/AdmitHub/meteor-buildpack-horse.";
   exit 1
 fi
-
-# the metrics plugin requires the same path like in the heroku nodejs buildpack: https://github.com/heroku/heroku-nodejs-plugin/blob/ee2c7e1a16809d965f49dba533861d01180ffe46/src/index.js#L9
-mkdir -p "$APP_CHECKOUT_DIR"/.heroku/node/bin
-NODE="$APP_CHECKOUT_DIR"/.heroku/node/bin/node
 
 # Copy node into place for production.
 NODE="$COMPILE_DIR"/bin/node
@@ -266,16 +184,14 @@ echo_with_time "    and npm: `$METEOR_NPM --version`"
 # Handle npm's new cert bug
 # http://blog.npmjs.org/post/78085451721/npms-self-signed-certificate-is-no-more
 if [ ! -f "$APP_SOURCE_DIR/.npmrc" ]; then
-  echo_with_time "Writing a custom .npmrc to circumvent npm bugs"
   #status "Writing a custom .npmrc to circumvent npm bugs"
   echo "ca=" > "$APP_SOURCE_DIR/.npmrc"
-  echo_with_time "Done"
 fi
 
 if [ "$GIT_SSH_KEY" != "" ]; then
-  echo_with_time "Setup GIT_SSH_KEY"
+  echo_with_time "Detected SSH key for git"
   #status "Detected SSH key for git.  launching ssh-agent and loading key"
-  echo $GIT_SSH_KEY | base64 --d > id_rsa
+  echo $GIT_SSH_KEY | base64 --decode > id_rsa
   # launch ssh-agent, we'll use it to serve our ssh key
   # and kill it towards the end of the buildpack's run
   eval `ssh-agent -s`
@@ -286,95 +202,84 @@ if [ "$GIT_SSH_KEY" != "" ]; then
   rm id_rsa
   # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
   ssh -oStrictHostKeyChecking=no -T git@github.com || true
-  echo_with_time "Connected"
+  echo_with_time "Completed SSH key config"
 fi
 
-if [ "$NPM_TOKEN" != "" ]; then
-  echo_with_time "Setup NPM_TOKEN"
-  echo "//npm.pkg.github.com/:_authToken=$NPM_TOKEN" > ~/.npmrc
-fi
+  ##status "Installing dependencies"
+  ## Make npm output to STDOUT instead of its default STDERR
+  #npm install --userconfig $build_dir/.npmrc --production 2>&1 | indent
 
 # If we use npm on root, run npm install.  Don't use `--production` here, as we
 # may need devDependencies (e.g. webpack) in order to build the meteor app.
-echo_with_time "Check modules"
+echo_with_time "Install Dependencies - Start"
 if [ -e "$APP_SOURCE_DIR"/package.json ]; then
- # echo_with_time "Make cache dir"
- # mkdir -p "$CACHE_DIR/meteor-dev-modules"
- # if [ -n "$(ls -A $CACHE_DIR/meteor-dev-modules)" ]; then
- #   echo_with_time "Reusing development node_modules cache"
- #   mkdir -p "node_modules"
- #   mv "$CACHE_DIR/meteor-dev-modules/*" "node_modules"
- # fi
-  echo_with_time "Meteor NPM Install"
-  $METEOR_NPM install
-  echo_with_time "Done w/ NPM Install"
-#  echo_with_time "Copy to cache"
-#  find -type d -printf '%d\t%P\n' | sort -r -nk1 | cut -f2-
-#  cp -a "node_modules/*" "$CACHE_DIR/meteor-dev-modules/"
-#  echo_with_time "Done w/ cache copy"
+  $METEOR_NPM install --production --userconfig $APP_SOURCE_DIR/.npmrc
+  $METEOR_NPM install --only=dev --userconfig $APP_SOURCE_DIR/.npmrc
 fi
-echo_with_time "Done with modules"
+echo_with_time "Install Dependencies - Complete"
 
-echo_with_time "$APP_SOURCE_DIR"
-# INSTALL GIT PACKAGES
+echo_with_time "Install Packages - Start"
 if [ -e "$APP_SOURCE_DIR"/git-packages.json ]; then
   echo_with_time "Installing mgp"
   $METEOR_NPM install -g mgp
   echo_with_time "Installing the packages"
-  mgp --https
-  echo_with_time "Done w/ MGP"
+  if [ "$GIT_SSH_KEY" != "" ]; then
+    mgp
+  else
+    mgp --https
+  fi
+fi
+echo_with_time "Install Packages - Complete"
+
+# REMOVE heavy Packages
+if [ -n "${BUILDPACK_REMOVE_METEOR_CANDY}" ]; then
+  echo_with_time "Attempting to remove Meteor Candy Config"
+  METEOR remove meteor-candy-config || true
+  echo_with_time "Attempting to remove Meteor Candy Blaze"
+  METEOR remove meteor-candy-blaze || true
+  echo_with_time "Attempting to remove Meteor Candy Admin"
+  METEOR remove meteor-candy-admin || true
+  echo_with_time "Moving on."
 fi
 
 # Related to https://github.com/meteor/meteor/issues/2796 and
 # https://github.com/meteor/meteor/issues/2606.  Some packages only build their
 # assets at runtime, and thus they are not available for bundling unless meteor
 # has been launched.  To opt-in to this, set BUILDPACK_PRELAUNCH_METEOR=1.
-if [ -n "$BUILDPACK_PRELAUNCH_METEOR" ]; then
+echo_with_time "BUILDPACK_PRELAUNCH_METEOR - Start"
+if [ -n "${BUILDPACK_PRELAUNCH_METEOR+1}" ]; then
   echo_with_time "BUILDPACK_PRELAUNCH_METEOR: Pre-launching meteor to build packages assets"
   # Remove the Android platform because it fails due to the Android tools not
   # being installed, but leave the iOS platform because it's ignored.
   METEOR remove-platform android || true
   HOME=$METEOR_DIR timeout -s9 60 $METEOR_DIR/.meteor/meteor --settings settings.json || true
 fi
+echo_with_time "BUILDPACK_PRELAUNCH_METEOR - Complete"
 
 # Now on to bundling. Don't put the bundle in $APP_CHECKOUT_DIR during
 # bundling, or it will recurse, trying to bundle up its own bundling.
 
 echo_with_time "Building Meteor app with ROOT_URL: $ROOT_URL"
 BUNDLE_DEST=`mktemp -d "$BUILDPACK_DIR/build-XXXX"`
-
 # The actual invocation of `meteor build`!
-# mkdir -p "$CACHE_DIR/meteor-build"
-# rm -rf "$APP_SOURCE_DIR"/.meteor/local
-# if [ -n "$(ls -A $CACHE_DIR/meteor-build)" ]; then
-#   echo_with_time "Reusing meteor build cache"
-# fi
-# ln -s "$CACHE_DIR/meteor-build" "$APP_SOURCE_DIR/.meteor/local"
-echo_with_time "Start build"
 METEOR build $BUILD_OPTIONS --server $ROOT_URL $SERVER_ONLY_FLAG --directory $BUNDLE_DEST
-echo_with_time "Complete build"
+echo_with_time "Building - Complete"
 
 echo_with_time "Moving built slug to $COMPILE_DIR/app"
 mv $BUNDLE_DEST/bundle "$COMPILE_DIR/app"
 rmdir $BUNDLE_DEST
+echo_with_time "Moving built slug complete"
 
 # Run npm install on the built slug; only for '--production' dependencies.
 echo_with_time "Installing npm production dependencies on built slug"
 if [ -e "$COMPILE_DIR"/app/programs/server/package.json ]; then
   cd "$COMPILE_DIR"/app/programs/server
- # mkdir -p "$CACHE_DIR/meteor-prod-modules"
- # if [ -n "$(ls -A $CACHE_DIR/meteor-prod-modules)" ]; then
- #   echo_with_time "Reusing production node_modules cache"
- # fi
- # mv "$CACHE_DIR/meteor-prod-modules/*" "$COMPILE_DIR/app/programs/server/node_modules" &> /dev/null || true
- # rm -rf "$CACHE_DIR/meteor-prod-modules"
-  $METEOR_NPM install --production
- # cp -R "$COMPILE_DIR/app/programs/server/node_modules" "$CACHE_DIR/meteor-prod-modules"
- # cd "$APP_SOURCE_DIR"
+  $METEOR_NPM prune --production --userconfig $APP_SOURCE_DIR/.npmrc
+  #$METEOR_NPM install --production --userconfig $APP_SOURCE_DIR/.npmrc
+  cd "$APP_SOURCE_DIR"
 fi
-echo_with_time "Finish Installing npm production"
+echo_with_time "Installing npm production dependencies - complete"
 
-# kill agent
 if [ "$GIT_SSH_KEY" != "" ]; then
   # Now that npm has finished running, we shouldn't need the ssh key anymore.  Kill ssh-agent
   eval `ssh-agent -k`
@@ -408,14 +313,9 @@ done
 #
 # Clear cache after build is done
 #
-if [ -n "$BUILDPACK_CLEAR_CACHE" ]; then
+if [ -n "${BUILDPACK_CLEAR_CACHE+1}" ]; then
   echo_with_time "Clearing cache dir."
   rm -rf $METEOR_DIR
- # rm -rf "$CACHE_DIR/*"
 fi
 
-# Calculate execution time
-END=$(date +%s)
-DIFF=$(($END - $START))
-# This date call doesn't work on macOS. Using BSD, it would be $(date -r $DIFF -u +%H:%M:%S)
-echo_with_time "Build duration: $(date -d@$DIFF -u +%H:%M:%S)"
+echo_with_time "All Complete"
