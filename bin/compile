@@ -185,7 +185,12 @@ echo_with_time "    and npm: `$METEOR_NPM --version`"
 # http://blog.npmjs.org/post/78085451721/npms-self-signed-certificate-is-no-more
 if [ ! -f "$APP_SOURCE_DIR/.npmrc" ]; then
   #status "Writing a custom .npmrc to circumvent npm bugs"
-  echo "ca=" > "$APP_SOURCE_DIR/.npmrc"
+  echo "ca=" >> "$APP_SOURCE_DIR/.npmrc"
+fi
+
+if [ "$NPM_TOKEN" != "" ]; then
+  echo_with_time "Setup NPM_TOKEN"
+  echo "//npm.pkg.github.com/:_authToken=$NPM_TOKEN" >> $APP_SOURCE_DIR/.npmrc
 fi
 
 if [ "$GIT_SSH_KEY" != "" ]; then
