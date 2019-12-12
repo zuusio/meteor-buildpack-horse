@@ -32,6 +32,7 @@ export_env_dir() {
   fi
 }
 
+echo_with_time "EXPERIMENT BRANCH"
 echo_with_time "Started"
 
 export_env_dir $3
