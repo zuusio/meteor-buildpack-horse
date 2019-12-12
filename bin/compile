@@ -236,6 +236,9 @@ if [ -e "$APP_SOURCE_DIR"/git-packages.json ]; then
 fi
 echo_with_time "Install Packages - Complete"
 
+echo_with_time "Attempting to remove standard-minifier-js"
+METEOR remove standard-minifier-js
+
 # REMOVE heavy Packages
 if [ -n "${BUILDPACK_REMOVE_METEOR_CANDY}" ]; then
   echo_with_time "Attempting to remove Meteor Candy Config"
