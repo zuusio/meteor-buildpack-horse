@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Heroku buildpack for Meteor
+# ZUUS NodeChef buildpack for Meteor
 #
 
 # fail fast.
@@ -130,26 +130,14 @@ cd "$APP_SOURCE_DIR"
 
 echo_with_time "Target Meteor version: `METEOR --version`"
 
-# Deal with non-server build targets.  Determine if we have --server-only flag
-# capability (Meteor 1.3 and up).
-# echo_with_time "Checking if this meteor version supports --server-only"
-# # Allow non-zero return from grep.
-# set +e
-# HAS_SERVER_ONLY=`METEOR help build | grep -e '--server-only'`
-# set -e
-# if [ -n "$HAS_SERVER_ONLY" ] ; then
-  SERVER_ONLY_FLAG='--server-only'
-  # Remove platforms to force corodova skip
-  echo_with_time "Attempting to remove android platform."
-  METEOR remove-platform android || true
-  echo_with_time "Moving on."
+# Remove platforms to force corodova skip
+echo_with_time "Attempting to remove android platform."
+METEOR remove-platform android || true
+echo_with_time "Moving on."
 
-  echo_with_time "Attempting to remove ios platform."
-  METEOR remove-platform ios || true
-  echo_with_time "Moving on."
-# else
-#   SERVER_ONLY_FLAG=""
-# fi
+echo_with_time "Attempting to remove ios platform."
+METEOR remove-platform ios || true
+echo_with_time "Moving on."
 
 # Identify the npm/node to use. We need to copy the node binary out to get the
 # correct version in the built slug (e.g. 0.10.x for Meteor<1.4, 4.x for
@@ -179,41 +167,6 @@ PATH="$METEOR_DIR/.meteor:`dirname $METEOR_NPM`:$COMPILE_DIR/bin:$PATH"
 echo_with_time "Using node: `$NODE --version`"
 echo_with_time "    and npm: `$METEOR_NPM --version`"
 
-# # TODO: run before hook scripts
-
-# # Handle npm's new cert bug
-# # http://blog.npmjs.org/post/78085451721/npms-self-signed-certificate-is-no-more
-# if [ ! -f "$APP_SOURCE_DIR/.npmrc" ]; then
-#   #status "Writing a custom .npmrc to circumvent npm bugs"
-#   echo "ca=" >> "$APP_SOURCE_DIR/.npmrc"
-# fi
-
-# if [ "$NPM_TOKEN" != "" ]; then
-#   echo_with_time "Setup NPM_TOKEN"
-#   echo "//npm.pkg.github.com/:_authToken=$NPM_TOKEN" >> $APP_SOURCE_DIR/.npmrc
-# fi
-
-# if [ "$GIT_SSH_KEY" != "" ]; then
-#   echo_with_time "Detected SSH key for git"
-#   #status "Detected SSH key for git.  launching ssh-agent and loading key"
-#   echo $GIT_SSH_KEY | base64 --decode > id_rsa
-#   # launch ssh-agent, we'll use it to serve our ssh key
-#   # and kill it towards the end of the buildpack's run
-#   eval `ssh-agent -s`
-#   # We're not supporting passphrases at this time.  We could pull that in
-#   # from config as well, but then we'd have to setup expect or some other
-#   # terminal automation tool to feed it into ssh-add.
-#   ssh-add id_rsa
-#   rm id_rsa
-#   # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
-#   ssh -oStrictHostKeyChecking=no -T git@github.com || true
-#   echo_with_time "Completed SSH key config"
-# fi
-
-#   ##status "Installing dependencies"
-#   ## Make npm output to STDOUT instead of its default STDERR
-#   #npm install --userconfig $build_dir/.npmrc --production 2>&1 | indent
-
 # If we use npm on root, run npm install.  Don't use `--production` here, as we
 # may need devDependencies (e.g. webpack) in order to build the meteor app.
 echo_with_time "Install Dependencies - Start"
@@ -223,43 +176,6 @@ if [ -e "$APP_SOURCE_DIR"/package.json ]; then
 fi
 echo_with_time "Install Dependencies - Complete"
 
-# echo_with_time "Install Packages - Start"
-# if [ -e "$APP_SOURCE_DIR"/git-packages.json ]; then
-#   echo_with_time "Installing mgp"
-#   $METEOR_NPM install -g mgp
-#   echo_with_time "Installing the packages"
-#   if [ "$GIT_SSH_KEY" != "" ]; then
-#     mgp
-#   else
-#     mgp --https
-#   fi
-# fi
-# echo_with_time "Install Packages - Complete"
-
-# # REMOVE heavy Packages
-# if [ -n "${BUILDPACK_REMOVE_METEOR_CANDY}" ]; then
-#   echo_with_time "Attempting to remove Meteor Candy Config"
-#   METEOR remove meteor-candy-config || true
-#   echo_with_time "Attempting to remove Meteor Candy Blaze"
-#   METEOR remove meteor-candy-blaze || true
-#   echo_with_time "Attempting to remove Meteor Candy Admin"
-#   METEOR remove meteor-candy-admin || true
-#   echo_with_time "Moving on."
-# fi
-
-# Related to https://github.com/meteor/meteor/issues/2796 and
-# https://github.com/meteor/meteor/issues/2606.  Some packages only build their
-# assets at runtime, and thus they are not available for bundling unless meteor
-# has been launched.  To opt-in to this, set BUILDPACK_PRELAUNCH_METEOR=1.
-# echo_with_time "BUILDPACK_PRELAUNCH_METEOR - Start"
-# if [ -n "${BUILDPACK_PRELAUNCH_METEOR+1}" ]; then
-#   echo_with_time "BUILDPACK_PRELAUNCH_METEOR: Pre-launching meteor to build packages assets"
-#   # Remove the Android platform because it fails due to the Android tools not
-#   # being installed, but leave the iOS platform because it's ignored.
-#   METEOR remove-platform android || true
-#   HOME=$METEOR_DIR timeout -s9 60 $METEOR_DIR/.meteor/meteor --settings settings.json || true
-# fi
-# echo_with_time "BUILDPACK_PRELAUNCH_METEOR - Complete"
 
 # Now on to bundling. Don't put the bundle in $APP_CHECKOUT_DIR during
 # bundling, or it will recurse, trying to bundle up its own bundling.
@@ -267,7 +183,7 @@ echo_with_time "Install Dependencies - Complete"
 echo_with_time "Building Meteor app with ROOT_URL: $ROOT_URL"
 BUNDLE_DEST=`mktemp -d "$BUILDPACK_DIR/build-XXXX"`
 # NFI why this is required - one thing could be that the NodeChef image is too old.
-$METEOR_NPM update caniuse-lite browserslist
+# $METEOR_NPM update caniuse-lite browserslist
 # The actual invocation of `meteor build`!
 METEOR build $BUILD_OPTIONS --server $ROOT_URL --server-only --directory $BUNDLE_DEST
 echo_with_time "Building - Complete"
@@ -286,13 +202,6 @@ if [ -e "$COMPILE_DIR"/app/programs/server/package.json ]; then
   cd "$APP_SOURCE_DIR"
 fi
 echo_with_time "Installing npm production dependencies - complete"
-
-# if [ "$GIT_SSH_KEY" != "" ]; then
-#   # Now that npm has finished running, we shouldn't need the ssh key anymore.  Kill ssh-agent
-#   eval `ssh-agent -k`
-#   # Clear that sensitive key data from the environment
-#   export GIT_SSH_KEY=0
-# fi
 
 #
 # Environment
