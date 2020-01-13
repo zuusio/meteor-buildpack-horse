@@ -8,7 +8,7 @@ echo "-----> Adding profile script to set METEOR_SETTING"
 curl -o "$APP_CHECKOUT_DIR"/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
 chmod +x "$APP_CHECKOUT_DIR"/jq
 
-if [ -z "PRODUCTION"] ; then
+if [ -z "PRODUCTION" ] ; then
     echo "FATAL: PRODUCTION is not defined, it should be 'true' or 'false'"
     exit 1
 else
