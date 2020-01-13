@@ -12,7 +12,7 @@ if [ -z "PRODUCTION" ] ; then
     echo "FATAL: PRODUCTION is not defined, it should be 'true' or 'false'"
     exit 1
 else
-    PROD = $PRODUCTION
+    PROD=$PRODUCTION
 fi
 
 if $PROD ; then
