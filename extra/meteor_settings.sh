@@ -19,7 +19,7 @@ if $PROD ; then
     # Build the production settings
     echo "Production deploy"
 
-    SETTINGS=jq -s '.[0] * .[1]' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/production.json
+    SETTINGS=`jq -s '.[0] * .[1]' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/production.json`
 else
     # Build the staging settings
     echo "Staging deploy"
@@ -30,7 +30,7 @@ else
 
     # Merge the common and staging specific settings, and include the staging version no.
     # CONFIG="$APP_CHECKOUT_DIR/server/settings/config.json"
-    SETTINGS=jq --arg VERSION "$STAGING_VERSION" -s '.[0] * .[1] | .public.version |= $VERSION' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/staging.json
+    SETTINGS=`jq --arg VERSION "$STAGING_VERSION" -s '.[0] * .[1] | .public.version |= $VERSION' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/staging.json`
 
 fi
 
