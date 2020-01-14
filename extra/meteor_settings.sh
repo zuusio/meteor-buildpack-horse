@@ -34,12 +34,12 @@ else
     echo "combining settings"
     # Merge the common and staging specific settings, and include the staging version no.
     # CONFIG="$APP_CHECKOUT_DIR/server/settings/config.json"
-    SETTINGS=`$JQ --arg VERSION "$STAGING_VERSION" -s '.[0] * .[1] | .public.version |= $VERSION' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/staging.json`
+    SETTINGS=`$JQ -c --arg VERSION "$STAGING_VERSION" -s '.[0] * .[1] | .public.version |= $VERSION' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/staging.json`
 fi
 
 echo $SETTINGS
 
 cat > "$APP_CHECKOUT_DIR"/.profile.d/meteor.sh <<EOF
   #!/bin/bash
-    export METEOR_SETTINGS=`$SETTINGS`
+    export METEOR_SETTINGS='$SETTINGS'
 EOF
