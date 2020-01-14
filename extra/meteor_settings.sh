@@ -41,5 +41,5 @@ echo $SETTINGS
 
 cat > "$APP_CHECKOUT_DIR"/.profile.d/meteor.sh <<EOF
   #!/bin/bash
-    export METEOR_SETTINGS="$SETTINGS"
+    export METEOR_SETTINGS=`$SETTINGS`
 EOF
