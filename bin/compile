@@ -199,6 +199,7 @@ if [ -e "$COMPILE_DIR"/app/programs/server/package.json ]; then
   cd "$COMPILE_DIR"/app/programs/server
 #   $METEOR_NPM prune --production --userconfig $APP_SOURCE_DIR/.npmrc
   $METEOR_NPM install --production
+  $METEOR_NPM audit fix
   cd "$APP_SOURCE_DIR"
 fi
 echo_with_time "Installing npm production dependencies - complete"
