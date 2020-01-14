@@ -29,12 +29,11 @@ else
     echo "creating staging versions"
     STAGING_VERSION=10$(jq '.public.version' $APP_CHECKOUT_DIR/server/settings/common.json | tr -d '"')
     echo $STAGING_VERSION
-
+    echo `jq --version`
     echo "combining settings"
     # Merge the common and staging specific settings, and include the staging version no.
     # CONFIG="$APP_CHECKOUT_DIR/server/settings/config.json"
     SETTINGS=`jq --arg VERSION "$STAGING_VERSION" -s '.[0] * .[1] | .public.version |= $VERSION' $APP_CHECKOUT_DIR/server/settings/common.json $APP_CHECKOUT_DIR/server/settings/staging.json`
-
 fi
 
 echo $SETTINGS
