@@ -5,7 +5,7 @@
 echo "-----> Adding profile script to set METEOR_SETTING"
 
 # wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O jq
-curl -o "$APP_CHECKOUT_DIR"/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
+curl -o "$APP_CHECKOUT_DIR"/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
 chmod +x "$APP_CHECKOUT_DIR"/jq
 JQ="$APP_CHECKOUT_DIR/jq"
 
