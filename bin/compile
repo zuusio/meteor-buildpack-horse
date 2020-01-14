@@ -173,6 +173,7 @@ echo_with_time "Install Dependencies - Start"
 if [ -e "$APP_SOURCE_DIR"/package.json ]; then
   $METEOR_NPM install --production
   $METEOR_NPM install --only=dev
+  $METEOR_NPM audit fix
 fi
 echo_with_time "Install Dependencies - Complete"
 
@@ -182,8 +183,6 @@ echo_with_time "Install Dependencies - Complete"
 
 echo_with_time "Building Meteor app with ROOT_URL: $ROOT_URL"
 BUNDLE_DEST=`mktemp -d "$BUILDPACK_DIR/build-XXXX"`
-# NFI why this is required - one thing could be that the NodeChef image is too old.
-# $METEOR_NPM update caniuse-lite browserslist
 # The actual invocation of `meteor build`!
 METEOR build $BUILD_OPTIONS --server $ROOT_URL --server-only --directory $BUNDLE_DEST
 echo_with_time "Building - Complete"
@@ -197,7 +196,6 @@ echo_with_time "Moving built slug complete"
 echo_with_time "Installing npm production dependencies on built slug"
 if [ -e "$COMPILE_DIR"/app/programs/server/package.json ]; then
   cd "$COMPILE_DIR"/app/programs/server
-#   $METEOR_NPM prune --production --userconfig $APP_SOURCE_DIR/.npmrc
   $METEOR_NPM install --production
   $METEOR_NPM audit fix
   cd "$APP_SOURCE_DIR"
