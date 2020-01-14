@@ -28,6 +28,7 @@ else
     # connecting to Staging or Production. 
     echo "creating staging versions"
     STAGING_VERSION=10$(jq '.public.version' $APP_CHECKOUT_DIR/server/settings/common.json | tr -d '"')
+    echo $STAGING_VERSION
 
     echo "combining settings"
     # Merge the common and staging specific settings, and include the staging version no.
