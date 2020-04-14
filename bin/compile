@@ -130,15 +130,6 @@ cd "$APP_SOURCE_DIR"
 
 echo_with_time "Target Meteor version: `METEOR --version`"
 
-# Remove platforms to force corodova skip
-echo_with_time "Attempting to remove android platform."
-METEOR remove-platform android || true
-echo_with_time "Moving on."
-
-echo_with_time "Attempting to remove ios platform."
-METEOR remove-platform ios || true
-echo_with_time "Moving on."
-
 # Identify the npm/node to use. We need to copy the node binary out to get the
 # correct version in the built slug (e.g. 0.10.x for Meteor<1.4, 4.x for
 # Meteor>=1.4).  We can't copy the whole meteor world because that's too large
